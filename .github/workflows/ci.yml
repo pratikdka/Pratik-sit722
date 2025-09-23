@@ -12,6 +12,20 @@ jobs:
   build-test-push:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -27,33 +41,13 @@ jobs:
           pip install -r backend/product_service/requirements.txt
           pip install pytest httpx
 
+      - name: Create test databases
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE orders;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE products;"
+
       - name: Run tests
         run: |
+          echo "Running pytest with explicit PYTHONPATH"
           export PYTHONPATH=$PWD/backend/order_service:$PWD/backend/product_service
           pytest backend/order_service/tests backend/product_service/tests --maxfail=1 --disable-warnings -q
-
-      # 🔐 Login to ACR
-      - name: Azure login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Docker login to ACR
-        run: |
-          az acr login --name week08acr
-
-      # 🐳 Build & push images
-      - name: Build and push frontend
-        run: |
-          docker build -t week08acr.azurecr.io/frontend:latest ./frontend
-          docker push week08acr.azurecr.io/frontend:latest
-
-      - name: Build and push order service
-        run: |
-          docker build -t week08acr.azurecr.io/order_service:latest ./backend/order_service
-          docker push week08acr.azurecr.io/order_service:latest
-
-      - name: Build and push product service
-        run: |
-          docker build -t week08acr.azurecr.io/product_service:latest ./backend/product_service
-          docker push week08acr.azurecr.io/product_service:latest
