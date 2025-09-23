@@ -50,4 +50,7 @@ jobs:
 
       - name: Run tests explicitly
         run: |
-          pytest backend/order_service/tests backend/product_service/tests --maxfail=1 --disable-warnings -q
+          echo "Running pytest with explicit PYTHONPATH"
+          export PYTHONPATH=$PWD/backend
+          python -m pytest backend/order_service/tests backend/product_service/tests --maxfail=1 --disable-warnings -q
+
