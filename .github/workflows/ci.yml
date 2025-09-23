@@ -14,11 +14,10 @@ jobs:
 
     services:
       postgres:
-        image: postgres:13
+        image: postgres:14
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: orders
         ports:
           - 5432:5432
         options: >-
@@ -41,7 +40,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/order_service/requirements.txt
           pip install -r backend/product_service/requirements.txt
-          pip install pytest httpx
+          pip install pytest httpx sqlalchemy-utils
+
+      - name: Create test databases
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE orders;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE products;"
 
       - name: Clean Python cache
         run: |
@@ -53,4 +57,3 @@ jobs:
           echo "Running pytest with explicit PYTHONPATH"
           export PYTHONPATH=$PWD/backend/order_service:$PWD/backend/product_service
           python -m pytest backend/order_service/tests backend/product_service/tests --maxfail=1 --disable-warnings -q
-
