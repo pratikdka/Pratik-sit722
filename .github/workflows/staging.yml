@@ -1,15 +1,14 @@
 name: CD Pipeline - Deploy to Staging
 
 on:
-  workflow_run:
-    workflows: ["CI Pipeline - Test and Push to ACR"]
-    types:
-      - completed
+  push:
+    branches:
+      - staging   # Runs only when code is pushed/merged into staging
 
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
     environment:
       name: staging
 
@@ -41,7 +40,7 @@ jobs:
         run: |
           kubectl create namespace staging || echo "Namespace exists"
 
-      # Deploy manifests
+      # Deploy to staging
       - name: Deploy manifests
         run: |
           kubectl apply -n staging -f k8s/
