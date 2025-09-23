@@ -9,12 +9,12 @@ on:
       - main
 
 jobs:
-  build-and-test:
+  build-test-push:
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres:14
+        image: postgres:13
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -27,7 +27,7 @@ jobs:
           --health-retries=5
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -37,23 +37,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install -r backend/order_service/requirements.txt
           pip install -r backend/product_service/requirements.txt
-          pip install pytest httpx sqlalchemy-utils
+          pip install pytest httpx
 
       - name: Create test databases
         run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE orders;"
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE products;"
 
-      - name: Clean Python cache
-        run: |
-          echo "Cleaning Python cache..."
-          find . -type d -name "__pycache__" -exec rm -r {} +
-
-      - name: Run tests explicitly
+      - name: Run tests
         run: |
           echo "Running pytest with explicit PYTHONPATH"
           export PYTHONPATH=$PWD/backend/order_service:$PWD/backend/product_service
-          python -m pytest backend/order_service/tests backend/product_service/tests --maxfail=1 --disable-warnings -q
+          pytest backend/order_service/tests backend/product_service/tests --maxfail=1 --disable-warnings -q
