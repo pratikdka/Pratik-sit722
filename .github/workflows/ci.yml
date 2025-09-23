@@ -1,0 +1,82 @@
+name: CI Pipeline - Test and Push to ACR
+
+on:
+  push:
+    branches:
+      - testing   # Only run on testing branch
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Install backend dependencies
+      - name: Install dependencies (Order Service)
+        working-directory: backend/order_service
+        run: |
+          pip install -r requirements-dev.txt
+
+      - name: Install dependencies (Product Service)
+        working-directory: backend/product_service
+        run: |
+          pip install -r requirements-dev.txt
+
+      # Run tests for order service
+      - name: Run tests - Order Service
+        working-directory: backend/order_service
+        run: pytest --maxfail=1 --disable-warnings -q
+
+      # Run tests for product service
+      - name: Run tests - Product Service
+        working-directory: backend/product_service
+        run: pytest --maxfail=1 --disable-warnings -q
+
+      # Login to Azure Container Registry
+      - name: Azure Container Registry Login
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.AZURE_CONTAINER_REGISTRY }} # e.g. myregistry.azurecr.io
+          username: ${{ secrets.AZURE_CLIENT_ID }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      # Build & Push Order Service Image
+      - name: Build & Push Order Service
+        run: |
+          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/order-service:${{ github.sha }} ./backend/order_service
+          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/order-service:${{ github.sha }}
+
+      # Build & Push Product Service Image
+      - name: Build & Push Product Service
+        run: |
+          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/product-service:${{ github.sha }} ./backend/product_service
+          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/product-service:${{ github.sha }}
+
+      # Build & Push Frontend Image
+      - name: Build & Push Frontend
+        run: |
+          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:${{ github.sha }} ./frontend
+          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:${{ github.sha }}
