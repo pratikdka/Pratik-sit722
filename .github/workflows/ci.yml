@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:13
@@ -39,7 +40,11 @@ jobs:
       - name: Run tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/orders
-        run: pytest --maxfail=1 --disable-warnings -q
+        run: |
+          echo "Cleaning Python cache..."
+          find . -type d -name "__pycache__" -exec rm -r {} +
+          find . -type f -name "*.pyc" -delete
+          pytest --maxfail=1 --disable-warnings -q
 
   build-and-push:
     runs-on: ubuntu-latest
