@@ -10,6 +10,8 @@ jobs:
   deploy-staging:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: staging
 
     steps:
       # Checkout repo
@@ -39,7 +41,7 @@ jobs:
         run: |
           kubectl create namespace staging || echo "Namespace exists"
 
-      # Deploy to staging
+      # Deploy manifests
       - name: Deploy manifests
         run: |
           kubectl apply -n staging -f k8s/
@@ -54,8 +56,3 @@ jobs:
         run: |
           kubectl run curl --rm -i --tty --image=curlimages/curl -n staging -- \
           curl http://frontend:80/ || exit 1
-
-      # Destroy staging namespace
-      - name: Cleanup staging
-        run: |
-          kubectl delete namespace staging
